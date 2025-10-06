@@ -15,7 +15,7 @@ public sealed class SpeedEditorTests
     public void TestInitialize()
     {
         _mockHardware = Substitute.For<IHardware>();
-        _mockHardware.Initialization.Returns(Task.CompletedTask);
+        _mockHardware.IsConnected.Returns(false);
         _sut = new SpeedEditor(_mockHardware);
     }
 
@@ -28,7 +28,7 @@ public sealed class SpeedEditorTests
     #region Constructor Tests
 
     [TestMethod]
-    public void Constructor_InitializesHardware()
+    public void Constructor_InitializesPropertiesWithoutCallingHardware()
     {
         // Arrange & Act
         // Constructor already called in TestInitialize
@@ -37,11 +37,12 @@ public sealed class SpeedEditorTests
         Assert.IsNotNull(_sut.Leds, "LED controller should be initialized");
         Assert.AreEqual(JogModes.RELATIVE_0, _sut.JogMode, "Default jog mode should be RELATIVE_0");
         Assert.AreEqual(JogLedStates.JOG, _sut.ActiveJogLed, "Default jog LED should be JOG");
+        Assert.IsFalse(_sut.IsConnected, "Should not be connected by default");
         
-        // Verify that hardware has been initialized on all accounts
-        _mockHardware.Received().SetLedsInternal(0); // LEDs initialized as off
-        _mockHardware.Received().SendJogLedStateToHardware(JogLedStates.JOG);
-        _mockHardware.Received().SendJogModeToHardware(JogModes.RELATIVE_0);
+        // Verify that hardware has NOT been called during construction
+        _mockHardware.DidNotReceive().SetLedsInternal(Arg.Any<Leds>());
+        _mockHardware.DidNotReceive().SendJogLedStateToHardware(Arg.Any<JogLedStates>());
+        _mockHardware.DidNotReceive().SendJogModeToHardware(Arg.Any<JogModes>());
     }
 
     #endregion
@@ -49,25 +50,57 @@ public sealed class SpeedEditorTests
     #region Property Tests
 
     [TestMethod]
-    public void Initialization_ReturnsHardwareInitializationTask()
+    public void IsConnected_ReturnsHardwareConnectionStatus()
     {
         // Arrange
-        var expectedTask = Task.CompletedTask;
-        _mockHardware.Initialization.Returns(expectedTask);
+        _mockHardware.IsConnected.Returns(true);
 
         // Act
-        var result = _sut.Initialization;
+        var result = _sut.IsConnected;
 
         // Assert
-        Assert.AreEqual(expectedTask, result, "Should return the hardware initialization task");
+        Assert.IsTrue(result, "Should return the hardware connection status");
+        
+        // Test disconnected state
+        _mockHardware.IsConnected.Returns(false);
+        result = _sut.IsConnected;
+        Assert.IsFalse(result, "Should return false when hardware is disconnected");
     }
 
     [TestMethod]
-    public void JogMode_WhenSet_CallsHardwareAndUpdatesProperty()
+    public async Task ConnectAsync_CallsHardwareConnectAndSendsInitialState()
+    {
+        // Arrange
+        var cancellationToken = new CancellationToken();
+        _mockHardware.IsConnected.Returns(true); // Mock as connected after ConnectAsync
+        
+        // Act
+        await _sut.ConnectAsync(cancellationToken);
+
+        // Assert
+        await _mockHardware.Received(1).ConnectAsync(cancellationToken);
+        _mockHardware.Received(1).SendJogModeToHardware(JogModes.RELATIVE_0);
+        _mockHardware.Received(1).SendJogLedStateToHardware(JogLedStates.JOG);
+        _mockHardware.Received(1).SetLedsInternal((Leds)0); // LEDs synced with initial state (all off)
+    }
+
+    [TestMethod]
+    public async Task DisconnectAsync_CallsHardwareDisconnect()
+    {
+        // Act
+        await _sut.DisconnectAsync();
+
+        // Assert
+        await _mockHardware.Received(1).DisconnectAsync();
+    }
+
+    [TestMethod]
+    public void JogMode_WhenSetWhileConnected_CallsHardwareAndUpdatesProperty()
     {
         // Arrange
         var newMode = JogModes.RELATIVE_2;
-        _mockHardware.ClearReceivedCalls(); // Clear initialization calls
+        _mockHardware.IsConnected.Returns(true);
+        _mockHardware.ClearReceivedCalls(); // Clear any previous calls
 
         // Act
         _sut.JogMode = newMode;
@@ -78,11 +111,28 @@ public sealed class SpeedEditorTests
     }
 
     [TestMethod]
+    public void JogMode_WhenSetWhileDisconnected_UpdatesPropertyButDoesNotCallHardware()
+    {
+        // Arrange
+        var newMode = JogModes.RELATIVE_2;
+        _mockHardware.IsConnected.Returns(false);
+        _mockHardware.ClearReceivedCalls(); // Clear any previous calls
+
+        // Act
+        _sut.JogMode = newMode;
+
+        // Assert
+        Assert.AreEqual(newMode, _sut.JogMode, "Property should be updated");
+        _mockHardware.DidNotReceive().SendJogModeToHardware(Arg.Any<JogModes>());
+    }
+
+    [TestMethod]
     public void JogMode_WhenSetToSameValue_DoesNotCallHardware()
     {
         // Arrange
         var currentMode = _sut.JogMode;
-        _mockHardware.ClearReceivedCalls(); // Clear initialization calls
+        _mockHardware.IsConnected.Returns(true);
+        _mockHardware.ClearReceivedCalls(); // Clear any previous calls
 
         // Act
         _sut.JogMode = currentMode;
@@ -92,11 +142,12 @@ public sealed class SpeedEditorTests
     }
 
     [TestMethod]
-    public void ActiveJogLed_WhenSet_CallsHardwareAndUpdatesProperty()
+    public void ActiveJogLed_WhenSetWhileConnected_CallsHardwareAndUpdatesProperty()
     {
         // Arrange
         var newLedState = JogLedStates.SHTL;
-        _mockHardware.ClearReceivedCalls(); // Clear initialization calls
+        _mockHardware.IsConnected.Returns(true);
+        _mockHardware.ClearReceivedCalls(); // Clear any previous calls
 
         // Act
         _sut.ActiveJogLed = newLedState;
@@ -107,11 +158,28 @@ public sealed class SpeedEditorTests
     }
 
     [TestMethod]
+    public void ActiveJogLed_WhenSetWhileDisconnected_UpdatesPropertyButDoesNotCallHardware()
+    {
+        // Arrange
+        var newLedState = JogLedStates.SHTL;
+        _mockHardware.IsConnected.Returns(false);
+        _mockHardware.ClearReceivedCalls(); // Clear any previous calls
+
+        // Act
+        _sut.ActiveJogLed = newLedState;
+
+        // Assert
+        Assert.AreEqual(newLedState, _sut.ActiveJogLed, "Property should be updated");
+        _mockHardware.DidNotReceive().SendJogLedStateToHardware(Arg.Any<JogLedStates>());
+    }
+
+    [TestMethod]
     public void ActiveJogLed_WhenSetToSameValue_DoesNotCallHardware()
     {
         // Arrange
         var currentLedState = _sut.ActiveJogLed;
-        _mockHardware.ClearReceivedCalls(); // Clear initialization calls
+        _mockHardware.IsConnected.Returns(true);
+        _mockHardware.ClearReceivedCalls(); // Clear any previous calls
 
         // Act
         _sut.ActiveJogLed = currentLedState;
@@ -318,10 +386,11 @@ public sealed class SpeedEditorTests
     #region LED Controller Integration
 
     [TestMethod]
-    public void LedController_WhenUsed_CallsHardwareSetLedsInternal()
+    public void LedController_WhenUsedWhileConnected_CallsHardwareSetLedsInternal()
     {
         // Arrange
-        _mockHardware.ClearReceivedCalls(); // Clear initialization calls
+        _mockHardware.IsConnected.Returns(true);
+        _mockHardware.ClearReceivedCalls(); // Clear any previous calls
 
         // Act
         _sut.Leds.Cut = true;

@@ -41,14 +41,11 @@ namespace SpeedEditorSharp
             _hardware.ReportReceived += (_, report) => ProcessReport(report.Report);
             
             // Initialize controllers
-            Leds = new LedController(leds => _hardware.SetLedsInternal(leds));
+            Leds = new LedController(leds => _hardware.SetLedsInternal(leds), () => IsConnected);
             
-            // Initialize jog state - always send initial values to hardware
+            // Initialize jog state - values will be sent to hardware when connected
             _currentJogMode = JogModes.RELATIVE_0;
-            _hardware.SendJogModeToHardware(_currentJogMode);
-            
             _currentJogLeds = JogLedStates.JOG;
-            _hardware.SendJogLedStateToHardware(_currentJogLeds);
         }
 
         private void ProcessReport(Report report)
@@ -95,9 +92,33 @@ namespace SpeedEditorSharp
         }
 
         /// <summary>
-        /// Gets an awaitable task that completes when the hardware connection and initialization is done
+        /// Gets whether the Speed Editor is currently connected
         /// </summary>
-        public Task Initialization => _hardware.Initialization;
+        public bool IsConnected => _hardware.IsConnected;
+
+        /// <summary>
+        /// Connects to the Speed Editor device and initializes communication
+        /// </summary>
+        /// <param name="cancellationToken">Cancellation token to cancel the connection attempt</param>
+        /// <returns>A task that completes when the device is connected and initialized</returns>
+        public async Task ConnectAsync(CancellationToken cancellationToken = default)
+        {
+            await _hardware.ConnectAsync(cancellationToken);
+            
+            // Send initial state to hardware after connection
+            _hardware.SendJogModeToHardware(_currentJogMode);
+            _hardware.SendJogLedStateToHardware(_currentJogLeds);
+            Leds.SyncToHardware();
+        }
+
+        /// <summary>
+        /// Disconnects from the Speed Editor device and stops communication
+        /// </summary>
+        /// <returns>A task that completes when the device is disconnected</returns>
+        public async Task DisconnectAsync()
+        {
+            await _hardware.DisconnectAsync();
+        }
         
         /// <summary>
         /// Gets the LED controller for managing individual LED states
@@ -115,7 +136,10 @@ namespace SpeedEditorSharp
                 if (_currentJogMode != value)
                 {
                     _currentJogMode = value;
-                    _hardware.SendJogModeToHardware(_currentJogMode);
+                    if (IsConnected)
+                    {
+                        _hardware.SendJogModeToHardware(_currentJogMode);
+                    }
                 }
             }
         }
@@ -131,7 +155,10 @@ namespace SpeedEditorSharp
                 if (_currentJogLeds != value)
                 {
                     _currentJogLeds = value;
-                    _hardware.SendJogLedStateToHardware(_currentJogLeds);
+                    if (IsConnected)
+                    {
+                        _hardware.SendJogLedStateToHardware(_currentJogLeds);
+                    }
                 }
             }
         }
@@ -193,6 +220,10 @@ namespace SpeedEditorSharp
         {
             if (!_disposed)
             {
+                if (IsConnected)
+                {
+                    DisconnectAsync().Wait(); // Synchronous disconnect for dispose
+                }
                 _hardware.Dispose();
                 _disposed = true;
             }

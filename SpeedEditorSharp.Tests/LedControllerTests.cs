@@ -7,29 +7,33 @@ public sealed class LedControllerTests
 {
     private readonly List<Leds> _ledStateUpdates = new();
     private LedController _sut = null!;
+    private bool _isConnected = false;
 
     [TestInitialize]
     public void TestInitialize()
     {
         _ledStateUpdates.Clear();
-        _sut = new(_ledStateUpdates.Add);
+        _isConnected = true;
+        _sut = new(_ledStateUpdates.Add, () => _isConnected);
     }
 
     [TestMethod]
-    public void Constructor_InitializesWithAllLedsOff()
+    public void Constructor_InitializesWithAllLedsOffWithoutCallingHardware()
     {
         // Arrange & Act
         // Constructor already called in TestInitialize
         
         // Assert
-        Assert.AreEqual(1, _ledStateUpdates.Count, "Constructor should call update hardware once");
-        Assert.AreEqual((Leds)0, _ledStateUpdates[0], "All LEDs should be off initially");
+        Assert.AreEqual(0, _ledStateUpdates.Count, "Constructor should not call hardware");
+        Assert.IsFalse(_sut.CloseUp, "CloseUp LED should be off by default");
+        Assert.IsFalse(_sut.Cut, "Cut LED should be off by default");
+        // All LEDs should be off by default
     }
 
     #region Individual LED Property Tests
 
     [TestMethod]
-    public void CloseUp_SetTrue_UpdatesHardwareCorrectly()
+    public void CloseUp_SetTrueWhenConnected_UpdatesHardwareCorrectly()
     {
         // Arrange
         _ledStateUpdates.Clear();
@@ -41,6 +45,54 @@ public sealed class LedControllerTests
         Assert.IsTrue(_sut.CloseUp, "CloseUp should return true");
         Assert.AreEqual(1, _ledStateUpdates.Count, "Hardware should be updated once");
         Assert.AreEqual(Leds.CLOSE_UP, _ledStateUpdates[0], "CloseUp LED should be set");
+    }
+
+    [TestMethod]
+    public void CloseUp_SetTrueWhenDisconnected_UpdatesPropertyButNotHardware()
+    {
+        // Arrange
+        _isConnected = false;
+        _ledStateUpdates.Clear();
+
+        // Act
+        _sut.CloseUp = true;
+
+        // Assert
+        Assert.IsTrue(_sut.CloseUp, "CloseUp should return true");
+        Assert.AreEqual(0, _ledStateUpdates.Count, "Hardware should not be updated when disconnected");
+    }
+
+    [TestMethod]
+    public void SyncToHardware_WhenConnected_SendsCurrentStateToHardware()
+    {
+        // Arrange
+        _isConnected = false;
+        _sut.CloseUp = true; // Set some state while disconnected
+        _sut.Cut = true;
+        _ledStateUpdates.Clear();
+        _isConnected = true; // Now connect
+
+        // Act
+        _sut.SyncToHardware();
+
+        // Assert
+        Assert.AreEqual(1, _ledStateUpdates.Count, "Hardware should be updated once");
+        Assert.AreEqual(Leds.CLOSE_UP | Leds.CUT, _ledStateUpdates[0], "Current LED state should be synced");
+    }
+
+    [TestMethod]
+    public void SyncToHardware_WhenDisconnected_DoesNotCallHardware()
+    {
+        // Arrange
+        _isConnected = false;
+        _sut.CloseUp = true;
+        _ledStateUpdates.Clear();
+
+        // Act
+        _sut.SyncToHardware();
+
+        // Assert
+        Assert.AreEqual(0, _ledStateUpdates.Count, "Hardware should not be called when disconnected");
     }
 
     [TestMethod]

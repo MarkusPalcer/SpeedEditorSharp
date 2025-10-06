@@ -9,30 +9,55 @@ internal class Hardware : IHardware
     private const int UsbVid = 0x1edb;
     private const int UsbPid = 0xda0e;
     private HidStream? _hidStream;
-    private readonly CancellationTokenSource _cancellationTokenSource = new();
+    private CancellationTokenSource? _cancellationTokenSource;
+    private Thread? _pollingThread;
     private bool _isDisposed;
     
     public event EventHandler<ReportReceivedEventArgs>? ReportReceived;
 
-    public Task Initialization { get; }
+    public bool IsConnected => _hidStream != null && !(_cancellationTokenSource?.IsCancellationRequested ?? true);
 
-    public Hardware()
+    public async Task ConnectAsync(CancellationToken cancellationToken = default)
     {
-        Initialization = InitializeAsync();
-    }
+        if (IsConnected)
+            throw new InvalidOperationException("Already connected. Call DisconnectAsync() first.");
 
-    private async Task InitializeAsync()
-    {
-        _hidStream = await ConnectAsync();
+        _cancellationTokenSource = new CancellationTokenSource();
+        using var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken, _cancellationTokenSource.Token);
+
+        _hidStream = await ConnectToDeviceAsync(linkedTokenSource.Token);
         Authenticate();
-        new Thread(Run).Start();
+        
+        _pollingThread = new Thread(Run) { IsBackground = true };
+        _pollingThread.Start();
     }
 
-    private async Task<HidStream> ConnectAsync()
+    public async Task DisconnectAsync()
+    {
+        if (!IsConnected)
+            return;
+
+        _cancellationTokenSource?.Cancel();
+        
+        // Wait for polling thread to finish
+        if (_pollingThread != null && _pollingThread.IsAlive)
+        {
+            await Task.Run(() => _pollingThread.Join(5000)); // Wait up to 5 seconds
+        }
+
+        _hidStream?.Dispose();
+        _hidStream = null;
+        _cancellationTokenSource?.Dispose();
+        _cancellationTokenSource = null;
+        _pollingThread = null;
+    }
+
+    private async Task<HidStream> ConnectToDeviceAsync(CancellationToken cancellationToken)
     {
         while (true)
         {
-            if (_cancellationTokenSource.IsCancellationRequested) throw new OperationCanceledException();
+            if (cancellationToken.IsCancellationRequested) throw new OperationCanceledException();
 
             // Find the Speed Editor device
             var devices = DeviceList.Local.GetHidDevices(UsbVid, UsbPid);
@@ -40,7 +65,7 @@ internal class Hardware : IHardware
             if (hidDevice is null)
             {
                 // Wait a bit before retrying
-                await Task.Delay(1000);
+                await Task.Delay(1000, cancellationToken);
             }
             else
             {
@@ -109,12 +134,12 @@ internal class Hardware : IHardware
         int timeout = BitConverter.ToUInt16(statusReport, 2);
 
         // Schedule re-authentication 10 seconds before the timeout
-        if (timeout > 10)
+        if (timeout > 10 && _cancellationTokenSource != null)
         {
             Task.Delay((timeout - 10) * 1000, _cancellationTokenSource.Token)
                 .ContinueWith(_ =>
                  {
-                     if (!_cancellationTokenSource.Token.IsCancellationRequested)
+                     if (!(_cancellationTokenSource?.Token.IsCancellationRequested ?? true))
                      {
                          Authenticate();
                      }
@@ -124,7 +149,7 @@ internal class Hardware : IHardware
     
     private void Run()
     {
-        while (!_cancellationTokenSource.IsCancellationRequested)
+        while (!(_cancellationTokenSource?.Token.IsCancellationRequested ?? true))
         {
             var report = Poll();
             if (report is not null) OnReportReceived(report);
@@ -135,38 +160,38 @@ internal class Hardware : IHardware
     /// <inheritdoc />
     public void SetLedsInternal(Leds leds)
     {
-        if (_hidStream is null)
-            throw new InvalidOperationException("You must wait for initialization to complete before using the device.");
+        if (!IsConnected)
+            throw new InvalidOperationException("Device is not connected. Call ConnectAsync() first.");
 
         var report = new byte[5];
         report[0] = 2; // Report ID
         var ledBytes = BitConverter.GetBytes((uint)leds);
         Array.Copy(ledBytes, 0, report, 1, 4);
-        _hidStream.Write(report);
+        _hidStream!.Write(report);
     }
 
     public void SendJogLedStateToHardware(JogLedStates jogLedsStates)
     {
-        if (_hidStream is null)
-            throw new InvalidOperationException("You must wait for initialization to complete before using the device.");
+        if (!IsConnected)
+            throw new InvalidOperationException("Device is not connected. Call ConnectAsync() first.");
 
         var report = new byte[2];
         report[0] = 4; // Report ID
         report[1] = (byte)jogLedsStates;
-        _hidStream.Write(report);
+        _hidStream!.Write(report);
     }
     
     public void SendJogModeToHardware(JogModes jogModes)
     {
-        if (_hidStream is null)
-            throw new InvalidOperationException("You must wait for initialization to complete before using the device.");
+        if (!IsConnected)
+            throw new InvalidOperationException("Device is not connected. Call ConnectAsync() first.");
         
         var report = new byte[7];
         report[0] = 3; // Report ID
         report[1] = (byte)jogModes;
         // bytes 2-5 are zero (4 byte integer)
         report[6] = 255;
-        _hidStream.Write(report);
+        _hidStream!.Write(report);
     }
     
     /// <summary>
@@ -174,7 +199,7 @@ internal class Hardware : IHardware
     /// </summary>
     private Report? Poll()
     {
-        if (_cancellationTokenSource.IsCancellationRequested || _hidStream is null)
+        if ((_cancellationTokenSource?.Token.IsCancellationRequested ?? true) || _hidStream is null)
             return null;
         
         try
@@ -282,9 +307,7 @@ internal class Hardware : IHardware
     {
         if (_isDisposed) return;
 
-        _cancellationTokenSource.Cancel();
-        if (_hidStream is not null) _hidStream.Dispose();
-
+        DisconnectAsync().Wait(); // Synchronous disconnect for dispose
         _isDisposed = true;
     }
 

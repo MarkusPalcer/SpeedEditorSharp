@@ -17,18 +17,18 @@ try
 {
     using var speedEditor = SpeedEditor.Instance;
     
-    Console.WriteLine("Speed Editor device found!");
+    Console.WriteLine("Connecting to Speed Editor device...");
     
-    // Authenticate with the device
-    await speedEditor.Initialization;
-    Console.WriteLine("Initialization successful.");
+    // Connect to the device
+    await speedEditor.ConnectAsync();
+    Console.WriteLine("Connected and initialized successfully.");
     
     // Set up the demo handler
     using var demoHandler = new DemoHandler(speedEditor);
     
     await Task.Delay(Timeout.Infinite);
 }
-catch (InvalidOperationException ex)
+catch (InvalidOperationException)
 {
     Console.WriteLine();
     Console.WriteLine("Troubleshooting:");

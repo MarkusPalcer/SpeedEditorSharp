@@ -8,15 +8,16 @@ namespace SpeedEditorSharp
     public class LedController
     {
         private readonly Action<Leds> _updateHardware;
+        private readonly Func<bool> _isConnected;
         private Leds _currentLeds;
 
-        internal LedController(Action<Leds> updateHardware)
+        internal LedController(Action<Leds> updateHardware, Func<bool> isConnected)
         {
             _updateHardware = updateHardware;
+            _isConnected = isConnected;
             _currentLeds = 0;
             
-            // Initialize hardware with all LEDs turned off
-            _updateHardware(_currentLeds);
+            // Don't initialize hardware during construction
         }
 
         /// <summary>
@@ -249,7 +250,21 @@ namespace SpeedEditorSharp
                 _currentLeds &= ~ledFlag;
             }
 
-            _updateHardware(_currentLeds);
+            if (_isConnected())
+            {
+                _updateHardware(_currentLeds);
+            }
+        }
+
+        /// <summary>
+        /// Sends the current LED state to hardware (used when connecting)
+        /// </summary>
+        internal void SyncToHardware()
+        {
+            if (_isConnected())
+            {
+                _updateHardware(_currentLeds);
+            }
         }
     }
 }

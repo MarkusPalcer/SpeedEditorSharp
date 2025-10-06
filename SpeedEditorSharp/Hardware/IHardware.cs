@@ -4,7 +4,9 @@ namespace SpeedEditorSharp.Hardware;
 
 public interface IHardware : IDisposable
 {
-    public Task Initialization { get; }
+    bool IsConnected { get; }
+    Task ConnectAsync(CancellationToken cancellationToken = default);
+    Task DisconnectAsync();
     void SetLedsInternal(Leds leds);
     void SendJogLedStateToHardware(JogLedStates jogLedsStates);
     void SendJogModeToHardware(JogModes jogModes);

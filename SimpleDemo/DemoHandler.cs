@@ -13,7 +13,6 @@ namespace SimpleDemo
     {
         private readonly SpeedEditor _speedEditor;
         private readonly InputSimulator _inputSimulator;
-        private Leds _currentLedses;
 
         // Jog mode configuration
         private readonly Dictionary<Keys, (JogLedStates JogLed, JogModes JogMode)> _jogModes;
@@ -26,7 +25,6 @@ namespace SimpleDemo
         {
             _speedEditor = speedEditor;
             _inputSimulator = new InputSimulator();
-            _currentLedses = 0;
 
             // Initialize jog mode mappings
             _jogModes = new Dictionary<Keys, (JogLedStates, JogModes)>
@@ -58,8 +56,7 @@ namespace SimpleDemo
                 { Keys.ESC, (VirtualKeyCode.CONTROL, VirtualKeyCode.VK_Z) }
             };
 
-            // Set initial state
-            _speedEditor.SetLeds(_currentLedses);
+            // Set initial jog state
             SetJogModeForKey(Keys.SCRL);
 
             // Subscribe to events
@@ -74,8 +71,8 @@ namespace SimpleDemo
         {
             if (_jogModes.TryGetValue(keys, out var jogConfig))
             {
-                _speedEditor.SetJogLeds(jogConfig.JogLed);
-                _speedEditor.SetJogMode(jogConfig.JogMode);
+                _speedEditor.ActiveJogLed = jogConfig.JogLed;
+                _speedEditor.JogMode = jogConfig.JogMode;
             }
         }
 
@@ -107,11 +104,7 @@ namespace SimpleDemo
             if (_modifiedKeyMappings.TryGetValue(key, out var modifiedMapping))
             {
                 _inputSimulator.Keyboard.ModifiedKeyStroke(modifiedMapping.Modifier, modifiedMapping.Key);
-                return;
             }
-
-            // If no mapping found, you could optionally log or handle unmapped keys
-            // Console.WriteLine($"No mapping found for key: {key}");
         }
 
         private void OnBatteryChanged(object? sender, BatteryEventArgs e)
@@ -137,14 +130,41 @@ namespace SimpleDemo
             SetJogModeForKey(e.Key);
             
             // Toggle LEDs - check if this key has a corresponding LED
-            if (Enum.TryParse<Leds>(e.Key.ToString(), out var ledFlag))
+            if (Enum.TryParse<Leds>(e.Key.ToString(), out _))
             {
-                _currentLedses ^= ledFlag;
-                _speedEditor.SetLeds(_currentLedses);
+                // Toggle the corresponding LED using the new property interface
+                ToggleLedProperty(e.Key);
             }
             
             // Handle key mappings
             HandleKeyMapping(e.Key);
+        }
+
+        private void ToggleLedProperty(Keys key)
+        {
+            // For camera keys, use the new SwitchCameraLed method for demonstration
+            switch (key.ToString())
+            {
+                case "CAM1": _speedEditor.Leds.SwitchCameraLed(Cameras.CAM1); break;
+                case "CAM2": _speedEditor.Leds.SwitchCameraLed(Cameras.CAM2); break;
+                case "CAM3": _speedEditor.Leds.SwitchCameraLed(Cameras.CAM3); break;
+                case "CAM4": _speedEditor.Leds.SwitchCameraLed(Cameras.CAM4); break;
+                case "CAM5": _speedEditor.Leds.SwitchCameraLed(Cameras.CAM5); break;
+                case "CAM6": _speedEditor.Leds.SwitchCameraLed(Cameras.CAM6); break;
+                case "CAM7": _speedEditor.Leds.SwitchCameraLed(Cameras.CAM7); break;
+                case "CAM8": _speedEditor.Leds.SwitchCameraLed(Cameras.CAM8); break;
+                case "CAM9": _speedEditor.Leds.SwitchCameraLed(Cameras.CAM9); break;
+                // For non-camera LEDs, toggle them individually
+                case "CLOSE_UP": _speedEditor.Leds.CloseUp = !_speedEditor.Leds.CloseUp; break;
+                case "CUT": _speedEditor.Leds.Cut = !_speedEditor.Leds.Cut; break;
+                case "DIS": _speedEditor.Leds.Dissolve = !_speedEditor.Leds.Dissolve; break;
+                case "SMTH_CUT": _speedEditor.Leds.SmoothCut = !_speedEditor.Leds.SmoothCut; break;
+                case "TRANS": _speedEditor.Leds.Transition = !_speedEditor.Leds.Transition; break;
+                case "SNAP": _speedEditor.Leds.Snap = !_speedEditor.Leds.Snap; break;
+                case "LIVE_OWR": _speedEditor.Leds.LiveOverwrite = !_speedEditor.Leds.LiveOverwrite; break;
+                case "VIDEO_ONLY": _speedEditor.Leds.VideoOnly = !_speedEditor.Leds.VideoOnly; break;
+                case "AUDIO_ONLY": _speedEditor.Leds.AudioOnly = !_speedEditor.Leds.AudioOnly; break;
+            }
         }
 
         public void Dispose()

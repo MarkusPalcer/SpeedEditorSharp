@@ -7,16 +7,22 @@ namespace SpeedEditorSharp
     /// <summary>
     /// Main Speed Editor device interface
     /// </summary>
-    public class SpeedEditor : IDisposable
+    public sealed class SpeedEditor : IDisposable
     {
         private const int UsbVid = 0x1edb;
         private const int UsbPid = 0xda0e;
+
+        private readonly HidStream _hidStream;
+        private readonly CancellationTokenSource _cancellationTokenSource;
         
-        private HidDevice? _hidDevice;
-        private HidStream _hidStream;
         private bool _disposed;
-        private CancellationTokenSource _cancellationTokenSource;
-        private HashSet<Keys> _previousKeys = new HashSet<Keys>();
+        private HashSet<Keys> _previousKeys = new();
+
+        // Controllers
+
+        // Jog state fields (moved from JogController)
+        private JogModes _currentJogMode;
+        private JogLedStates _currentJogLeds;
 
         // Events
         public event EventHandler<JogEventArgs>? JogChanged;
@@ -29,15 +35,22 @@ namespace SpeedEditorSharp
         {
             // Find the Speed Editor device
             var devices = DeviceList.Local.GetHidDevices(UsbVid, UsbPid);
-            _hidDevice = devices.FirstOrDefault();
+            var hidDevice = devices.FirstOrDefault();
             
-            if (_hidDevice == null)
+            if (hidDevice == null)
             {
                 throw new InvalidOperationException("Blackmagic Speed Editor device not found. Make sure it's connected and not in use by DaVinci Resolve.");
             }
 
-            _hidStream = _hidDevice.Open();
+            _hidStream = hidDevice.Open();
             _cancellationTokenSource = new CancellationTokenSource();
+
+            // Initialize controllers
+            Leds = new LedController(SetLedsInternal);
+            
+            // Initialize jog state
+            JogMode = JogModes.RELATIVE_0;
+            ActiveJogLed = JogLedStates.JOG;
         }
 
         /// <summary>
@@ -118,21 +131,55 @@ namespace SpeedEditorSharp
         }
 
         /// <summary>
-        /// Set LED states
+        /// Gets the LED controller for managing individual LED states
         /// </summary>
-        public void SetLeds(Leds ledses)
+        public LedController Leds { get; }
+
+        /// <summary>
+        /// Gets or sets the current jog wheel mode
+        /// </summary>
+        public JogModes JogMode
+        {
+            get => _currentJogMode;
+            set
+            {
+                if (_currentJogMode != value)
+                {
+                    _currentJogMode = value;
+                    SendJogModeToHardware(_currentJogMode);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the active jog LED states
+        /// </summary>
+        public JogLedStates ActiveJogLed
+        {
+            get => _currentJogLeds;
+            set
+            {
+                if (_currentJogLeds != value)
+                {
+                    _currentJogLeds = value;
+                    SendJogLedStateToHardware(_currentJogLeds);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Set LED states (internal method used by LedController)
+        /// </summary>
+        private void SetLedsInternal(Leds leds)
         {
             var report = new byte[5];
             report[0] = 2; // Report ID
-            var ledBytes = BitConverter.GetBytes((uint)ledses);
+            var ledBytes = BitConverter.GetBytes((uint)leds);
             Array.Copy(ledBytes, 0, report, 1, 4);
             _hidStream.Write(report);
         }
 
-        /// <summary>
-        /// Set jog LED states
-        /// </summary>
-        public void SetJogLeds(JogLedStates jogLedsStates)
+        private void SendJogLedStateToHardware(JogLedStates jogLedsStates)
         {
             var report = new byte[2];
             report[0] = 4; // Report ID
@@ -140,16 +187,13 @@ namespace SpeedEditorSharp
             _hidStream.Write(report);
         }
 
-        /// <summary>
-        /// Set jog wheel mode
-        /// </summary>
-        public void SetJogMode(JogModes jogModes, byte unknown = 255)
+        private void SendJogModeToHardware(JogModes jogModes)
         {
             var report = new byte[7];
             report[0] = 3; // Report ID
             report[1] = (byte)jogModes;
             // bytes 2-5 are zero (4 byte integer)
-            report[6] = unknown;
+            report[6] = 255;
             _hidStream.Write(report);
         }
 
@@ -177,7 +221,7 @@ namespace SpeedEditorSharp
         /// <summary>
         /// Safely invoke the JogChanged event
         /// </summary>
-        protected virtual void OnJogChanged(JogModes modes, int value)
+        private void OnJogChanged(JogModes modes, int value)
         {
             JogChanged?.Invoke(this, new JogEventArgs(modes, value));
         }
@@ -185,7 +229,7 @@ namespace SpeedEditorSharp
         /// <summary>
         /// Safely invoke the KeyDown event
         /// </summary>
-        protected virtual void OnKeyDown(Keys key)
+        private void OnKeyDown(Keys key)
         {
             KeyDown?.Invoke(this, new KeyEventArgs(key));
         }
@@ -193,7 +237,7 @@ namespace SpeedEditorSharp
         /// <summary>
         /// Safely invoke the KeyUp event
         /// </summary>
-        protected virtual void OnKeyUp(Keys key)
+        private void OnKeyUp(Keys key)
         {
             KeyUp?.Invoke(this, new KeyEventArgs(key));
         }
@@ -201,7 +245,7 @@ namespace SpeedEditorSharp
         /// <summary>
         /// Safely invoke the KeyPress event
         /// </summary>
-        protected virtual void OnKeyPress(Keys key)
+        private void OnKeyPress(Keys key)
         {
             KeyPress?.Invoke(this, new KeyEventArgs(key));
         }
@@ -209,7 +253,7 @@ namespace SpeedEditorSharp
         /// <summary>
         /// Safely invoke the BatteryChanged event
         /// </summary>
-        protected virtual void OnBatteryChanged(bool charging, int level)
+        private void OnBatteryChanged(bool charging, int level)
         {
             BatteryChanged?.Invoke(this, new BatteryEventArgs(charging, level));
         }
@@ -316,7 +360,7 @@ namespace SpeedEditorSharp
             if (!_disposed)
             {
                 _cancellationTokenSource.Cancel();
-                _hidStream?.Dispose();
+                _hidStream.Dispose();
                 _disposed = true;
             }
         }

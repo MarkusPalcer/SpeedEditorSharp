@@ -22,6 +22,11 @@ try
     
     Console.WriteLine("Demo handler initialized. Ready to receive input...");
     Console.WriteLine();
+    Console.WriteLine("NEW INTERFACE DEMONSTRATION:");
+    Console.WriteLine("- Camera buttons now use SwitchCameraLed() method");
+    Console.WriteLine("- Other LEDs toggle individually using properties");
+    Console.WriteLine("- Jog mode and LEDs controlled via speedEditor.Jog properties");
+    Console.WriteLine();
     Console.WriteLine("Key mappings:");
     Console.WriteLine("- CAM1-CAM9: Number keys 1-9");
     Console.WriteLine("- STOP/PLAY: Spacebar");

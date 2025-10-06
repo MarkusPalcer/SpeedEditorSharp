@@ -5,7 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using HidSharp;
 
-namespace SpeedEditorWindows
+namespace SpeedEditorSharp
 {
     /// <summary>
     /// Main Speed Editor device interface

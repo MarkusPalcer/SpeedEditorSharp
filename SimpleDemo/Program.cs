@@ -1,5 +1,6 @@
-﻿using System;
-using SpeedEditorWindows;
+using System;
+using SpeedEditorSharp;
+using SimpleDemo;
 
 Console.WriteLine($"Blackmagic Speed Editor - Windows Demo");
 Console.WriteLine($"Started at: {DateTime.Now}");

@@ -1,6 +1,6 @@
 using System;
 
-namespace SpeedEditorWindows
+namespace SpeedEditorSharp
 {
     /// <summary>
     /// Authentication mechanism for the Blackmagic Speed Editor

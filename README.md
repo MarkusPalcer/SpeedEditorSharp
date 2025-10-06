@@ -1,20 +1,32 @@
-# Blackmagic Speed Editor - Windows C# Implementation
+# SpeedEditorSharp
 
-This is based on a Python-based Blackmagic Speed Editor interface. 
-It provides the same functionality as the original Python script but runs 
-natively on Windows using C# and .NET and adheres to a typical C# structure.
+A .NET library for interfacing with the Blackmagic Speed Editor, based on the Python implementation by octimot.
+This project splits the implementation into two parts: a reusable library and a demo application.
 
 The original Python implementation can be found here: 
-[GitHub - octimot/blackmagic-speededitor(https://github.com/octimot/blackmagic-speededitor)
+[GitHub - octimot/blackmagic-speededitor](https://github.com/octimot/blackmagic-speededitor)
 
-## Features
+## Projects
 
-- **HID Device Communication**: Direct communication with the Blackmagic Speed Editor via USB
-- **Authentication**: Full implementation of the device authentication protocol
-- **Key Mapping**: Configurable key mappings to Windows keyboard inputs
-- **Jog Wheel Support**: Handles jog wheel movements and different jog modes
-- **LED Control**: Controls the device LEDs based on key presses
-- **Battery Monitoring**: Reports battery status and charging state
+### SpeedEditorSharp (Library)
+A .NET 9.0 class library that provides the core functionality for communicating with the Blackmagic Speed Editor device.
+
+**Key Classes:**
+- `SpeedEditor` - Main interface for device communication
+- `SpeedEditorKey` - Enumeration of all button keys
+- `SpeedEditorLed` - LED control flags
+- `SpeedEditorJogMode` - Jog wheel operation modes
+- Event argument classes for handling device events
+
+### SimpleDemo (Console Application)
+A console application that demonstrates how to use the SpeedEditorSharp library.
+
+**Key mappings:**
+- CAM1-CAM9 → Number keys 1-9
+- STOP/PLAY → Spacebar
+- CUT → Ctrl+X
+- ESC → Ctrl+Z (Undo)
+- Jog wheel → Left/Right arrow keys
 
 ## Requirements
 

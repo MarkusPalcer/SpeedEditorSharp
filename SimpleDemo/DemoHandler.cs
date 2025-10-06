@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using WindowsInput;
 using WindowsInput.Native;
+using SpeedEditorSharp;
 
-namespace SpeedEditorWindows
+namespace SimpleDemo
 {
     /// <summary>
     /// Demo handler for Speed Editor events that simulates keyboard input

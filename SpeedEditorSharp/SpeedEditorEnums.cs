@@ -1,6 +1,6 @@
 using System;
 
-namespace SpeedEditorWindows
+namespace SpeedEditorSharp
 {
     /// <summary>
     /// Key codes for the Blackmagic Speed Editor

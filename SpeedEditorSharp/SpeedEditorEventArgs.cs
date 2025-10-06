@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace SpeedEditorWindows
+namespace SpeedEditorSharp
 {
     /// <summary>
     /// Event args for jog wheel events

@@ -1,4 +1,4 @@
-namespace SpeedEditorSharp
+namespace SpeedEditorSharp.Hardware
 {
     /// <summary>
     /// Authentication mechanism for the Blackmagic Speed Editor

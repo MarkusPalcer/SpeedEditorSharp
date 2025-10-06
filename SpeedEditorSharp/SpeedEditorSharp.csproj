@@ -1,25 +1,30 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageId>SpeedEditorSharp</PackageId>
-    <Title>SpeedEditorSharp</Title>
-    <Description>A .NET library for interfacing with the Blackmagic Speed Editor</Description>
-    <Version>1.0.0</Version>
-    <Authors>SpeedEditorSharp</Authors>
-  </PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <PackageId>SpeedEditorSharp</PackageId>
+        <Title>SpeedEditorSharp</Title>
+        <Description>A .NET library for interfacing with the Blackmagic Speed Editor</Description>
+        <Version>1.0.0</Version>
+        <Authors>SpeedEditorSharp</Authors>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
-      <_Parameter1>SpeedEditorSharp.Tests</_Parameter1>
-    </AssemblyAttribute>
-  </ItemGroup>
+    <ItemGroup>
+        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+            <_Parameter1>SpeedEditorSharp.Tests</_Parameter1>
+        </AssemblyAttribute>
+        
+        <!-- Needed for NSubstittue to mock internal interfaces -->
+        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+            <_Parameter1>DynamicProxyGenAssembly2</_Parameter1>
+        </AssemblyAttribute>
+    </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="HidSharp" Version="2.6.3" />
-  </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="HidSharp" Version="2.6.3"/>
+    </ItemGroup>
 
 </Project>

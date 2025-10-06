@@ -40,9 +40,9 @@ public sealed class SpeedEditorTests
         Assert.IsFalse(_sut.IsConnected, "Should not be connected by default");
         
         // Verify that hardware has NOT been called during construction
-        _mockHardware.DidNotReceive().SetLedsInternal(Arg.Any<Leds>());
-        _mockHardware.DidNotReceive().SendJogLedStateToHardware(Arg.Any<JogLedStates>());
-        _mockHardware.DidNotReceive().SendJogModeToHardware(Arg.Any<JogModes>());
+        _mockHardware.DidNotReceive().SendLedStates(Arg.Any<Leds>());
+        _mockHardware.DidNotReceive().SendJogLedState(Arg.Any<JogLedStates>());
+        _mockHardware.DidNotReceive().SendJogMode(Arg.Any<JogModes>());
     }
 
     #endregion
@@ -79,9 +79,9 @@ public sealed class SpeedEditorTests
 
         // Assert
         await _mockHardware.Received(1).ConnectAsync(cancellationToken);
-        _mockHardware.Received(1).SendJogModeToHardware(JogModes.RELATIVE_0);
-        _mockHardware.Received(1).SendJogLedStateToHardware(JogLedStates.JOG);
-        _mockHardware.Received(1).SetLedsInternal((Leds)0); // LEDs synced with initial state (all off)
+        _mockHardware.Received(1).SendJogMode(JogModes.RELATIVE_0);
+        _mockHardware.Received(1).SendJogLedState(JogLedStates.JOG);
+        _mockHardware.Received(1).SendLedStates((Leds)0); // LEDs synced with initial state (all off)
     }
 
     [TestMethod]
@@ -107,7 +107,7 @@ public sealed class SpeedEditorTests
 
         // Assert
         Assert.AreEqual(newMode, _sut.JogMode, "Property should be updated");
-        _mockHardware.Received(1).SendJogModeToHardware(newMode);
+        _mockHardware.Received(1).SendJogMode(newMode);
     }
 
     [TestMethod]
@@ -123,7 +123,7 @@ public sealed class SpeedEditorTests
 
         // Assert
         Assert.AreEqual(newMode, _sut.JogMode, "Property should be updated");
-        _mockHardware.DidNotReceive().SendJogModeToHardware(Arg.Any<JogModes>());
+        _mockHardware.DidNotReceive().SendJogMode(Arg.Any<JogModes>());
     }
 
     [TestMethod]
@@ -138,7 +138,7 @@ public sealed class SpeedEditorTests
         _sut.JogMode = currentMode;
 
         // Assert
-        _mockHardware.DidNotReceive().SendJogModeToHardware(Arg.Any<JogModes>());
+        _mockHardware.DidNotReceive().SendJogMode(Arg.Any<JogModes>());
     }
 
     [TestMethod]
@@ -154,7 +154,7 @@ public sealed class SpeedEditorTests
 
         // Assert
         Assert.AreEqual(newLedState, _sut.ActiveJogLed, "Property should be updated");
-        _mockHardware.Received(1).SendJogLedStateToHardware(newLedState);
+        _mockHardware.Received(1).SendJogLedState(newLedState);
     }
 
     [TestMethod]
@@ -170,7 +170,7 @@ public sealed class SpeedEditorTests
 
         // Assert
         Assert.AreEqual(newLedState, _sut.ActiveJogLed, "Property should be updated");
-        _mockHardware.DidNotReceive().SendJogLedStateToHardware(Arg.Any<JogLedStates>());
+        _mockHardware.DidNotReceive().SendJogLedState(Arg.Any<JogLedStates>());
     }
 
     [TestMethod]
@@ -185,7 +185,7 @@ public sealed class SpeedEditorTests
         _sut.ActiveJogLed = currentLedState;
 
         // Assert
-        _mockHardware.DidNotReceive().SendJogLedStateToHardware(Arg.Any<JogLedStates>());
+        _mockHardware.DidNotReceive().SendJogLedState(Arg.Any<JogLedStates>());
     }
 
     [TestMethod]
@@ -396,7 +396,7 @@ public sealed class SpeedEditorTests
         _sut.Leds.Cut = true;
 
         // Assert
-        _mockHardware.Received().SetLedsInternal(Arg.Any<Leds>());
+        _mockHardware.Received().SendLedStates(Arg.Any<Leds>());
     }
 
     #endregion

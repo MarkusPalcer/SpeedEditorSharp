@@ -1,6 +1,6 @@
 namespace SpeedEditorSharp.Hardware;
 
-public class ReportReceivedEventArgs : EventArgs
+internal class ReportReceivedEventArgs : EventArgs
 {
-    public Reports.Report Report { get; init;  }
+    public required Reports.Report Report { get; init; }
 }

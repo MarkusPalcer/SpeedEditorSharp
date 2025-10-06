@@ -35,13 +35,13 @@ namespace SpeedEditorSharp
         public event EventHandler<KeyEventArgs>? KeyPress;
         public event EventHandler<BatteryEventArgs>? BatteryStatusUpdate;
 
-        public SpeedEditor(IHardware hardware)
+        internal SpeedEditor(IHardware hardware)
         {
             _hardware = hardware;
             _hardware.ReportReceived += (_, report) => ProcessReport(report.Report);
             
             // Initialize controllers
-            Leds = new LedController(leds => _hardware.SetLedsInternal(leds), () => IsConnected);
+            Leds = new LedController(leds => _hardware.SendLedStates(leds), () => IsConnected);
             
             // Initialize jog state - values will be sent to hardware when connected
             _currentJogMode = JogModes.RELATIVE_0;
@@ -106,8 +106,8 @@ namespace SpeedEditorSharp
             await _hardware.ConnectAsync(cancellationToken);
             
             // Send initial state to hardware after connection
-            _hardware.SendJogModeToHardware(_currentJogMode);
-            _hardware.SendJogLedStateToHardware(_currentJogLeds);
+            _hardware.SendJogMode(_currentJogMode);
+            _hardware.SendJogLedState(_currentJogLeds);
             Leds.SyncToHardware();
         }
 
@@ -138,7 +138,7 @@ namespace SpeedEditorSharp
                     _currentJogMode = value;
                     if (IsConnected)
                     {
-                        _hardware.SendJogModeToHardware(_currentJogMode);
+                        _hardware.SendJogMode(_currentJogMode);
                     }
                 }
             }
@@ -157,7 +157,7 @@ namespace SpeedEditorSharp
                     _currentJogLeds = value;
                     if (IsConnected)
                     {
-                        _hardware.SendJogLedStateToHardware(_currentJogLeds);
+                        _hardware.SendJogLedState(_currentJogLeds);
                     }
                 }
             }

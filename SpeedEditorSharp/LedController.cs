@@ -255,10 +255,7 @@ namespace SpeedEditorSharp
                 _updateHardware(_currentLeds);
             }
         }
-
-        /// <summary>
-        /// Sends the current LED state to hardware (used when connecting)
-        /// </summary>
+        
         internal void SyncToHardware()
         {
             if (_isConnected())

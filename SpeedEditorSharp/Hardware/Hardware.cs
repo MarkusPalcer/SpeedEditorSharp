@@ -4,19 +4,23 @@ using SpeedEditorSharp.Hardware.Reports;
 
 namespace SpeedEditorSharp.Hardware;
 
-internal class Hardware : IHardware
+internal sealed class Hardware : IHardware
 {
-    private const int UsbVid = 0x1edb;
-    private const int UsbPid = 0xda0e;
+    private const int UsbVid = 0x1edb; // Blackmagic Design
+    private const int UsbPid = 0xda0e; // Speed Editor
+
     private HidStream? _hidStream;
     private CancellationTokenSource? _cancellationTokenSource;
     private Thread? _pollingThread;
     private bool _isDisposed;
-    
+
+    /// <inheritdoc />
     public event EventHandler<ReportReceivedEventArgs>? ReportReceived;
 
+    /// <inheritdoc />
     public bool IsConnected => _hidStream != null && !(_cancellationTokenSource?.IsCancellationRequested ?? true);
 
+    /// <inheritdoc />
     public async Task ConnectAsync(CancellationToken cancellationToken = default)
     {
         if (IsConnected)
@@ -28,18 +32,19 @@ internal class Hardware : IHardware
 
         _hidStream = await ConnectToDeviceAsync(linkedTokenSource.Token);
         Authenticate();
-        
+
         _pollingThread = new Thread(Run) { IsBackground = true };
         _pollingThread.Start();
     }
 
+    /// <inheritdoc />
     public async Task DisconnectAsync()
     {
         if (!IsConnected)
             return;
 
         _cancellationTokenSource?.Cancel();
-        
+
         // Wait for polling thread to finish
         if (_pollingThread != null && _pollingThread.IsAlive)
         {
@@ -146,7 +151,7 @@ internal class Hardware : IHardware
                  }, _cancellationTokenSource.Token);
         }
     }
-    
+
     private void Run()
     {
         while (!(_cancellationTokenSource?.Token.IsCancellationRequested ?? true))
@@ -158,55 +163,54 @@ internal class Hardware : IHardware
 
 
     /// <inheritdoc />
-    public void SetLedsInternal(Leds leds)
+    public void SendLedStates(Leds state)
     {
         if (!IsConnected)
             throw new InvalidOperationException("Device is not connected. Call ConnectAsync() first.");
 
         var report = new byte[5];
         report[0] = 2; // Report ID
-        var ledBytes = BitConverter.GetBytes((uint)leds);
+        var ledBytes = BitConverter.GetBytes((uint)state);
         Array.Copy(ledBytes, 0, report, 1, 4);
         _hidStream!.Write(report);
     }
 
-    public void SendJogLedStateToHardware(JogLedStates jogLedsStates)
+    /// <inheritdoc />
+    public void SendJogLedState(JogLedStates jogLedsState)
     {
         if (!IsConnected)
             throw new InvalidOperationException("Device is not connected. Call ConnectAsync() first.");
 
         var report = new byte[2];
         report[0] = 4; // Report ID
-        report[1] = (byte)jogLedsStates;
+        report[1] = (byte)jogLedsState;
         _hidStream!.Write(report);
     }
-    
-    public void SendJogModeToHardware(JogModes jogModes)
+
+    /// <inheritdoc />
+    public void SendJogMode(JogModes jogMode)
     {
         if (!IsConnected)
             throw new InvalidOperationException("Device is not connected. Call ConnectAsync() first.");
-        
+
         var report = new byte[7];
         report[0] = 3; // Report ID
-        report[1] = (byte)jogModes;
+        report[1] = (byte)jogMode;
         // bytes 2-5 are zero (4 byte integer)
         report[6] = 255;
         _hidStream!.Write(report);
     }
-    
-    /// <summary>
-    /// Poll for reports from the device
-    /// </summary>
+
     private Report? Poll()
     {
         if ((_cancellationTokenSource?.Token.IsCancellationRequested ?? true) || _hidStream is null)
             return null;
-        
+
         try
         {
             var report = new byte[64];
             int bytesRead = _hidStream.Read(report, 0, report.Length);
-                
+
             if (bytesRead > 0)
             {
                 return ParseReport(report);
@@ -220,7 +224,6 @@ internal class Hardware : IHardware
         return null;
     }
 
-    
     private Report? ParseReport(byte[] report)
     {
         if (report.Length == 0) return null;
@@ -237,72 +240,71 @@ internal class Hardware : IHardware
                 throw new NotSupportedException("Unknown report type");
         }
     }
-    
-      private Report? ParseReport03(byte[] report)
-        {
-            // Report ID 03
-            // u8   - Report ID
-            // u8   - Jog mode
-            // le32 - Jog value (signed)
-            // u8   - Unknown ?
-            // 6*u8 - Unknown? (skip the remaining bytes)
-            
-            if (report.Length < 7) return null;
-            
-            var jogMode = (JogModes)report[1];
-            var jogValue = BitConverter.ToInt32(report, 2);
-            
-            return new JogUpdate
-            {
-                Mode = jogMode,
-                Value = jogValue
-            };
-        }
 
-        private Report? ParseReport04(byte[] report)
+    private Report? ParseReport03(byte[] report)
+    {
+        // Report ID 03
+        // u8   - Report ID
+        // u8   - Jog mode
+        // le32 - Jog value (signed)
+        // u8   - Unknown ?
+        // 6*u8 - Unknown? (skip the remaining bytes)
+
+        if (report.Length < 7) return null;
+
+        var jogMode = (JogModes)report[1];
+        var jogValue = BitConverter.ToInt32(report, 2);
+
+        return new JogUpdate
         {
-            // Report ID 04
-            // u8      - Report ID
-            // le16[6] - Array of keys held down
-            
-            if (report.Length < 13) return null;
-            
-            var currentKeys = new HashSet<Keys>();
-            
-            for (int i = 0; i < 6; i++)
+            Mode = jogMode,
+            Value = jogValue
+        };
+    }
+
+    private Report? ParseReport04(byte[] report)
+    {
+        // Report ID 04
+        // u8      - Report ID
+        // le16[6] - Array of keys held down
+
+        if (report.Length < 13) return null;
+
+        var currentKeys = new HashSet<Keys>();
+
+        for (int i = 0; i < 6; i++)
+        {
+            var keyCode = BitConverter.ToUInt16(report, 1 + (i * 2));
+            if (keyCode != 0)
             {
-                var keyCode = BitConverter.ToUInt16(report, 1 + (i * 2));
-                if (keyCode != 0)
-                {
-                    var key = (Keys)keyCode;
-                    currentKeys.Add(key);
-                }
+                var key = (Keys)keyCode;
+                currentKeys.Add(key);
             }
-            
-            return new KeyUpdate { Keys = currentKeys };
-            
-            
         }
 
-        private Report? ParseReport07(byte[] report)
+        return new KeyUpdate { Keys = currentKeys };
+    }
+
+    private Report? ParseReport07(byte[] report)
+    {
+        // Report ID 07
+        // u8 - Report ID
+        // u8 - Charging (1) / Not-charging (0)
+        // u8 - Battery level (0-100)
+
+        if (report.Length < 3) return null;
+
+        var charging = report[1] != 0;
+        int batteryLevel = report[2];
+
+        return new BatteryUpdate
         {
-            // Report ID 07
-            // u8 - Report ID
-            // u8 - Charging (1) / Not-charging (0)
-            // u8 - Battery level (0-100)
-            
-            if (report.Length < 3) return null;
-            
-            var charging = report[1] != 0;
-            int batteryLevel = report[2];
+            Charging = charging,
+            Level = batteryLevel
+        };
+    }
 
-            return new BatteryUpdate
-            {
-                Charging = charging,
-                Level = batteryLevel
-            };
-        }
-    
+    /// <inheritdoc />
     public void Dispose()
     {
         if (_isDisposed) return;
@@ -311,7 +313,7 @@ internal class Hardware : IHardware
         _isDisposed = true;
     }
 
-    protected virtual void OnReportReceived(Report e)
+    private void OnReportReceived(Report e)
     {
         ReportReceived?.Invoke(this, new ReportReceivedEventArgs { Report = e });
     }

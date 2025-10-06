@@ -3,14 +3,14 @@ namespace SpeedEditorSharp.Enums;
 public enum Transitions
 {
     // No transition LED is lit
-    None,
+    NONE,
     
     // The LED on the CUT key is lit
-    Cut,
+    CUT,
     
     // The LED on the DIS key is lit
-    Dissolve,
+    DISSOLVE,
     
     // The LED on the SMTH_CUT key is lit
-    SmoothCut,
+    SMOOTH_CUT,
 }

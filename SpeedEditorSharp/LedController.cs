@@ -213,6 +213,31 @@ namespace SpeedEditorSharp
             _updateHardware(_currentLeds);
         }
 
+        /// <summary>
+        /// Switches to the specified transition LED, turning off all other transition LEDs
+        /// </summary>
+        /// <param name="transition">The transition to switch to</param>
+        public void SwitchTransitionLed(Transitions transition)
+        {
+            // Clear all transition LEDs first
+            const Leds transitionLeds = Leds.CUT | Leds.DIS | Leds.SMTH_CUT;
+            
+            _currentLeds &= ~transitionLeds;
+
+            // Set the specified transition LED
+            Leds targetLed = transition switch
+            {
+                Transitions.CUT => Leds.CUT,
+                Transitions.DISSOLVE => Leds.DIS,
+                Transitions.SMOOTH_CUT => Leds.SMTH_CUT,
+                Transitions.NONE => 0, // No transition selected, turn all LEDs off
+                _ => throw new ArgumentOutOfRangeException(nameof(transition))
+            };
+
+            _currentLeds |= targetLed;
+            _updateHardware(_currentLeds);
+        }
+
         private void SetLed(Leds ledFlag, bool state)
         {
             if (state)

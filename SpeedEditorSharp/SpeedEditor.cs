@@ -24,12 +24,16 @@ namespace SpeedEditorSharp
         private JogModes _currentJogMode;
         private JogLedStates _currentJogLeds;
 
+        // Battery state fields
+        private bool _lastChargingState;
+        private int _lastBatteryLevel;
+
         // Events
-        public event EventHandler<JogEventArgs>? JogChanged;
+        public event EventHandler<JogEventArgs>? JogWheelMoved;
         public event EventHandler<KeyEventArgs>? KeyDown;
         public event EventHandler<KeyEventArgs>? KeyUp;
         public event EventHandler<KeyEventArgs>? KeyPress;
-        public event EventHandler<BatteryEventArgs>? BatteryChanged;
+        public event EventHandler<BatteryEventArgs>? BatteryStatusUpdate;
 
         public SpeedEditor()
         {
@@ -168,6 +172,16 @@ namespace SpeedEditorSharp
         }
 
         /// <summary>
+        /// Gets the charging state from the last battery status update
+        /// </summary>
+        public bool Charging => _lastChargingState;
+
+        /// <summary>
+        /// Gets the battery level from the last battery status update
+        /// </summary>
+        public int BatteryLevel => _lastBatteryLevel;
+
+        /// <summary>
         /// Set LED states (internal method used by LedController)
         /// </summary>
         private void SetLedsInternal(Leds leds)
@@ -223,7 +237,7 @@ namespace SpeedEditorSharp
         /// </summary>
         private void OnJogChanged(JogModes modes, int value)
         {
-            JogChanged?.Invoke(this, new JogEventArgs(modes, value));
+            JogWheelMoved?.Invoke(this, new JogEventArgs(modes, value));
         }
 
         /// <summary>
@@ -255,7 +269,9 @@ namespace SpeedEditorSharp
         /// </summary>
         private void OnBatteryChanged(bool charging, int level)
         {
-            BatteryChanged?.Invoke(this, new BatteryEventArgs(charging, level));
+            _lastChargingState = charging;
+            _lastBatteryLevel = level;
+            BatteryStatusUpdate?.Invoke(this, new BatteryEventArgs(charging, level));
         }
 
         private void ParseReport(byte[] report)

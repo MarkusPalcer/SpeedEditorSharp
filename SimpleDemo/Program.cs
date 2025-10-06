@@ -22,14 +22,18 @@ try
     
     Console.WriteLine("Demo handler initialized. Ready to receive input...");
     Console.WriteLine();
-    Console.WriteLine("NEW INTERFACE DEMONSTRATION:");
+    Console.WriteLine("NEW BATTERY PROPERTIES DEMONSTRATION:");
+    Console.WriteLine("- You can now access Charging and BatteryLevel properties directly");
+    Console.WriteLine("- No need to subscribe to events if you just want to check the values");
+    Console.WriteLine();
+    
+    // Demonstrate the new battery properties
+    Console.WriteLine("LED INTERFACE DEMONSTRATION:");
     Console.WriteLine("- Camera buttons now use SwitchCameraLed() method");
     Console.WriteLine("- Other LEDs toggle individually using properties");
     Console.WriteLine("- Jog mode and LEDs controlled via speedEditor.Jog properties");
     Console.WriteLine();
     Console.WriteLine("Key mappings:");
-    Console.WriteLine("- CAM1-CAM9: Number keys 1-9");
-    Console.WriteLine("- STOP/PLAY: Spacebar");
     Console.WriteLine("- CUT: Ctrl+X");
     Console.WriteLine("- ESC: Ctrl+Z (Undo)");
     Console.WriteLine("- Jog wheel: Left/Right arrow keys");

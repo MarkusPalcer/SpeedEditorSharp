@@ -60,11 +60,11 @@ namespace SimpleDemo
             SetJogModeForKey(Keys.SCRL);
 
             // Subscribe to events
-            _speedEditor.JogChanged += OnJogChanged;
+            _speedEditor.JogWheelMoved += OnJogWheelMoved;
             _speedEditor.KeyDown += OnKeyDown;
             _speedEditor.KeyUp += OnKeyUp;
             _speedEditor.KeyPress += OnKeyPress;
-            _speedEditor.BatteryChanged += OnBatteryChanged;
+            _speedEditor.BatteryStatusUpdate += OnBatteryStatusUpdate;
         }
 
         private void SetJogModeForKey(Keys keys)
@@ -76,7 +76,7 @@ namespace SimpleDemo
             }
         }
 
-        private void OnJogChanged(object? sender, JogEventArgs e)
+        private void OnJogWheelMoved(object? sender, JogEventArgs e)
         {
             Console.WriteLine($"Jog mode {(int)e.Modes}: {e.Value}");
 
@@ -107,7 +107,7 @@ namespace SimpleDemo
             }
         }
 
-        private void OnBatteryChanged(object? sender, BatteryEventArgs e)
+        private void OnBatteryStatusUpdate(object? sender, BatteryEventArgs e)
         {
             Console.WriteLine($"Battery {e.Level}%{(e.IsCharging ? " and charging" : "")}");
         }
@@ -154,11 +154,12 @@ namespace SimpleDemo
                 case "CAM7": _speedEditor.Leds.SwitchCameraLed(Cameras.CAM7); break;
                 case "CAM8": _speedEditor.Leds.SwitchCameraLed(Cameras.CAM8); break;
                 case "CAM9": _speedEditor.Leds.SwitchCameraLed(Cameras.CAM9); break;
-                // For non-camera LEDs, toggle them individually
+                // For transition keys, use the new SwitchTransitionLed method for demonstration  
+                case "CUT": _speedEditor.Leds.SwitchTransitionLed(Transitions.CUT); break;
+                case "DIS": _speedEditor.Leds.SwitchTransitionLed(Transitions.DISSOLVE); break;
+                case "SMTH_CUT": _speedEditor.Leds.SwitchTransitionLed(Transitions.SMOOTH_CUT); break;
+                // For other non-camera, non-transition LEDs, toggle them individually
                 case "CLOSE_UP": _speedEditor.Leds.CloseUp = !_speedEditor.Leds.CloseUp; break;
-                case "CUT": _speedEditor.Leds.Cut = !_speedEditor.Leds.Cut; break;
-                case "DIS": _speedEditor.Leds.Dissolve = !_speedEditor.Leds.Dissolve; break;
-                case "SMTH_CUT": _speedEditor.Leds.SmoothCut = !_speedEditor.Leds.SmoothCut; break;
                 case "TRANS": _speedEditor.Leds.Transition = !_speedEditor.Leds.Transition; break;
                 case "SNAP": _speedEditor.Leds.Snap = !_speedEditor.Leds.Snap; break;
                 case "LIVE_OWR": _speedEditor.Leds.LiveOverwrite = !_speedEditor.Leds.LiveOverwrite; break;
@@ -170,11 +171,11 @@ namespace SimpleDemo
         public void Dispose()
         {
             // Unsubscribe from events to prevent memory leaks
-            _speedEditor.JogChanged -= OnJogChanged;
+            _speedEditor.JogWheelMoved -= OnJogWheelMoved;
             _speedEditor.KeyDown -= OnKeyDown;
             _speedEditor.KeyUp -= OnKeyUp;
             _speedEditor.KeyPress -= OnKeyPress;
-            _speedEditor.BatteryChanged -= OnBatteryChanged;
+            _speedEditor.BatteryStatusUpdate -= OnBatteryStatusUpdate;
         }
     }
 }

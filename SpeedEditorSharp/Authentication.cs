@@ -1,5 +1,3 @@
-using System;
-
 namespace SpeedEditorSharp
 {
     /// <summary>
@@ -8,10 +6,10 @@ namespace SpeedEditorSharp
     /// keyboard authenticate to each other... without that, the keyboard
     /// doesn't send REPORTs :/
     /// </summary>
-    public static class SpeedEditorAuth
+    internal static class Authentication
     {
-        private static readonly ulong[] AUTH_EVEN_TBL = new ulong[]
-        {
+        private static readonly ulong[] AuthEvenTbl =
+        [
             0x3ae1206f97c10bc8,
             0x2a9ab32bebf244c6,
             0x20a6f8b8df9adf0a,
@@ -19,11 +17,11 @@ namespace SpeedEditorSharp
             0xec2ee2f7414fd151,
             0xb055adfd73344a15,
             0xa63d2e3059001187,
-            0x751bf623f42e0dde,
-        };
+            0x751bf623f42e0dde
+        ];
 
-        private static readonly ulong[] AUTH_ODD_TBL = new ulong[]
-        {
+        private static readonly ulong[] AuthOddTbl =
+        [
             0x3e22b34f502e7fde,
             0x24656b981875ab1c,
             0xa17f3456df7bf8c3,
@@ -31,10 +29,10 @@ namespace SpeedEditorSharp
             0x72226f011e66ab94,
             0x3831a3c606296b42,
             0xfd7ff81881332c89,
-            0x61a3f6474ff236c6,
-        };
+            0x61a3f6474ff236c6
+        ];
 
-        private const ulong MASK = 0xa79a63f585d37bf0;
+        private const ulong Mask = 0xa79a63f585d37bf0;
 
         /// <summary>
         /// Rotate left by 8 bits
@@ -47,7 +45,7 @@ namespace SpeedEditorSharp
         /// <summary>
         /// Rotate left by 8 bits n times
         /// </summary>
-        private static ulong Rol8n(ulong v, int n)
+        private static ulong Rol8N(ulong v, int n)
         {
             for (int i = 0; i < n; i++)
             {
@@ -62,20 +60,20 @@ namespace SpeedEditorSharp
         public static ulong ComputeAuthResponse(ulong challenge)
         {
             int n = (int)(challenge & 7);
-            ulong v = Rol8n(challenge, n);
+            ulong v = Rol8N(challenge, n);
 
             ulong k;
             if ((v & 1) == ((0x78u >> n) & 1))
             {
-                k = AUTH_EVEN_TBL[n];
+                k = AuthEvenTbl[n];
             }
             else
             {
                 v = v ^ Rol8(v);
-                k = AUTH_ODD_TBL[n];
+                k = AuthOddTbl[n];
             }
 
-            return v ^ (Rol8(v) & MASK) ^ k;
+            return v ^ (Rol8(v) & Mask) ^ k;
         }
     }
 }

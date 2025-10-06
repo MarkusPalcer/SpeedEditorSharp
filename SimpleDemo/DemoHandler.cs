@@ -1,9 +1,8 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using WindowsInput;
 using WindowsInput.Native;
 using SpeedEditorSharp;
+using SpeedEditorSharp.Enums;
+using SpeedEditorSharp.Events;
 
 namespace SimpleDemo
 {
@@ -14,30 +13,30 @@ namespace SimpleDemo
     {
         private readonly SpeedEditor _speedEditor;
         private readonly InputSimulator _inputSimulator;
-        private List<SpeedEditorKey> _currentKeys;
-        private SpeedEditorLed _currentLeds;
+        private List<Keys> _currentKeys;
+        private Leds _currentLedses;
 
         // Jog mode configuration
-        private readonly Dictionary<SpeedEditorKey, (SpeedEditorJogLed JogLed, SpeedEditorJogMode JogMode)> _jogModes;
+        private readonly Dictionary<Keys, (JogLedStates JogLed, JogModes JogMode)> _jogModes;
 
         public DemoHandler(SpeedEditor speedEditor)
         {
             _speedEditor = speedEditor;
             _inputSimulator = new InputSimulator();
-            _currentKeys = new List<SpeedEditorKey>();
-            _currentLeds = 0;
+            _currentKeys = new List<Keys>();
+            _currentLedses = 0;
 
             // Initialize jog mode mappings
-            _jogModes = new Dictionary<SpeedEditorKey, (SpeedEditorJogLed, SpeedEditorJogMode)>
+            _jogModes = new Dictionary<Keys, (JogLedStates, JogModes)>
             {
-                { SpeedEditorKey.SHTL, (SpeedEditorJogLed.SHTL, SpeedEditorJogMode.ABSOLUTE_DEADZERO) },
-                { SpeedEditorKey.JOG, (SpeedEditorJogLed.JOG, SpeedEditorJogMode.RELATIVE_2) },
-                { SpeedEditorKey.SCRL, (SpeedEditorJogLed.SCRL, SpeedEditorJogMode.RELATIVE_2) }
+                { Keys.SHTL, (JogLedStates.SHTL, JogModes.ABSOLUTE_DEADZERO) },
+                { Keys.JOG, (JogLedStates.JOG, JogModes.RELATIVE_2) },
+                { Keys.SCRL, (JogLedStates.SCRL, JogModes.RELATIVE_2) }
             };
 
             // Set initial state
-            _speedEditor.SetLeds(_currentLeds);
-            SetJogModeForKey(SpeedEditorKey.SCRL);
+            _speedEditor.SetLeds(_currentLedses);
+            SetJogModeForKey(Keys.SCRL);
 
             // Subscribe to events
             _speedEditor.JogChanged += OnJogChanged;
@@ -45,9 +44,9 @@ namespace SimpleDemo
             _speedEditor.BatteryChanged += OnBatteryChanged;
         }
 
-        private void SetJogModeForKey(SpeedEditorKey key)
+        private void SetJogModeForKey(Keys keys)
         {
-            if (_jogModes.TryGetValue(key, out var jogConfig))
+            if (_jogModes.TryGetValue(keys, out var jogConfig))
             {
                 _speedEditor.SetJogLeds(jogConfig.JogLed);
                 _speedEditor.SetJogMode(jogConfig.JogMode);
@@ -56,7 +55,7 @@ namespace SimpleDemo
 
         private void OnJogChanged(object? sender, JogEventArgs e)
         {
-            Console.WriteLine($"Jog mode {(int)e.Mode}: {e.Value}");
+            Console.WriteLine($"Jog mode {(int)e.Modes}: {e.Value}");
 
             // Example: when the jog wheel is turned, simulate left/right arrow keys
             if (e.Value > 0)
@@ -72,7 +71,7 @@ namespace SimpleDemo
         private void OnKeyChanged(object? sender, KeyEventArgs e)
         {
             // Debug message
-            var keyNames = e.Keys.Count > 0 ? string.Join(", ", e.Keys.Select(k => k.ToString())) : "None";
+            var keyNames = e.Keys.Any() ? string.Join(", ", e.Keys.Select(k => k.ToString())) : "None";
             Console.WriteLine($"Keys held: {keyNames}");
 
             // Find keys being released and toggle LED if there is one
@@ -82,67 +81,69 @@ namespace SimpleDemo
                 SetJogModeForKey(releasedKey);
 
                 // Toggle LEDs - check if this key has a corresponding LED
-                if (Enum.TryParse<SpeedEditorLed>(releasedKey.ToString(), out var ledFlag))
+                if (Enum.TryParse<Leds>(releasedKey.ToString(), out var ledFlag))
                 {
-                    _currentLeds ^= ledFlag;
-                    _speedEditor.SetLeds(_currentLeds);
+                    _currentLedses ^= ledFlag;
+                    _speedEditor.SetLeds(_currentLedses);
                 }
             }
 
-            _currentKeys = new List<SpeedEditorKey>(e.Keys);
+            _currentKeys = new List<Keys>(e.Keys);
 
             // Example key mappings
             HandleKeyMappings(e.Keys);
         }
 
-        private void HandleKeyMappings(List<SpeedEditorKey> keys)
+        private void HandleKeyMappings(IEnumerable<Keys> keys)
         {
+            keys = keys.ToArray();
+            
             // Example: pressing CAM1 will press the '1' key on the keyboard
-            if (keys.Contains(SpeedEditorKey.CAM1) && keys.Count == 1)
+            if (keys.Contains(Keys.CAM1))
             {
                 _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.VK_1);
             }
-            else if (keys.Contains(SpeedEditorKey.CAM2) && keys.Count == 1)
+            else if (keys.Contains(Keys.CAM2))
             {
                 _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.VK_2);
             }
-            else if (keys.Contains(SpeedEditorKey.CAM3) && keys.Count == 1)
+            else if (keys.Contains(Keys.CAM3))
             {
                 _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.VK_3);
             }
-            else if (keys.Contains(SpeedEditorKey.CAM4) && keys.Count == 1)
+            else if (keys.Contains(Keys.CAM4))
             {
                 _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.VK_4);
             }
-            else if (keys.Contains(SpeedEditorKey.CAM5) && keys.Count == 1)
+            else if (keys.Contains(Keys.CAM5))
             {
                 _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.VK_5);
             }
-            else if (keys.Contains(SpeedEditorKey.CAM6) && keys.Count == 1)
+            else if (keys.Contains(Keys.CAM6))
             {
                 _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.VK_6);
             }
-            else if (keys.Contains(SpeedEditorKey.CAM7) && keys.Count == 1)
+            else if (keys.Contains(Keys.CAM7))
             {
                 _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.VK_7);
             }
-            else if (keys.Contains(SpeedEditorKey.CAM8) && keys.Count == 1)
+            else if (keys.Contains(Keys.CAM8))
             {
                 _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.VK_8);
             }
-            else if (keys.Contains(SpeedEditorKey.CAM9) && keys.Count == 1)
+            else if (keys.Contains(Keys.CAM9))
             {
                 _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.VK_9);
             }
-            else if (keys.Contains(SpeedEditorKey.STOP_PLAY) && keys.Count == 1)
+            else if (keys.Contains(Keys.STOP_PLAY))
             {
                 _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.SPACE);
             }
-            else if (keys.Contains(SpeedEditorKey.CUT) && keys.Count == 1)
+            else if (keys.Contains(Keys.CUT))
             {
                 _inputSimulator.Keyboard.ModifiedKeyStroke(VirtualKeyCode.CONTROL, VirtualKeyCode.VK_X);
             }
-            else if (keys.Contains(SpeedEditorKey.ESC) && keys.Count == 1)
+            else if (keys.Contains(Keys.ESC))
             {
                 _inputSimulator.Keyboard.ModifiedKeyStroke(VirtualKeyCode.CONTROL, VirtualKeyCode.VK_Z);
             }
@@ -157,12 +158,9 @@ namespace SimpleDemo
         public void Dispose()
         {
             // Unsubscribe from events to prevent memory leaks
-            if (_speedEditor != null)
-            {
-                _speedEditor.JogChanged -= OnJogChanged;
-                _speedEditor.KeyChanged -= OnKeyChanged;
-                _speedEditor.BatteryChanged -= OnBatteryChanged;
-            }
+            _speedEditor.JogChanged -= OnJogChanged;
+            _speedEditor.KeyChanged -= OnKeyChanged;
+            _speedEditor.BatteryChanged -= OnBatteryChanged;
         }
     }
 }

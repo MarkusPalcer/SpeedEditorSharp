@@ -1,9 +1,6 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using HidSharp;
+using SpeedEditorSharp.Enums;
+using SpeedEditorSharp.Events;
 
 namespace SpeedEditorSharp
 {
@@ -12,12 +9,12 @@ namespace SpeedEditorSharp
     /// </summary>
     public class SpeedEditor : IDisposable
     {
-        private const int USB_VID = 0x1edb;
-        private const int USB_PID = 0xda0e;
+        private const int UsbVid = 0x1edb;
+        private const int UsbPid = 0xda0e;
         
         private HidDevice? _hidDevice;
         private HidStream _hidStream;
-        private bool _disposed = false;
+        private bool _disposed;
         private CancellationTokenSource _cancellationTokenSource;
 
         // Events
@@ -28,7 +25,7 @@ namespace SpeedEditorSharp
         public SpeedEditor()
         {
             // Find the Speed Editor device
-            var devices = DeviceList.Local.GetHidDevices(USB_VID, USB_PID);
+            var devices = DeviceList.Local.GetHidDevices(UsbVid, UsbPid);
             _hidDevice = devices.FirstOrDefault();
             
             if (_hidDevice == null)
@@ -80,7 +77,7 @@ namespace SpeedEditorSharp
             }
 
             // Compute and send our response
-            ulong response = SpeedEditorAuth.ComputeAuthResponse(challenge);
+            ulong response = Authentication.ComputeAuthResponse(challenge);
             var responseBytes = BitConverter.GetBytes(response);
             var responseReport = new byte[10];
             responseReport[0] = 0x06;
@@ -120,11 +117,11 @@ namespace SpeedEditorSharp
         /// <summary>
         /// Set LED states
         /// </summary>
-        public void SetLeds(SpeedEditorLed leds)
+        public void SetLeds(Leds ledses)
         {
             var report = new byte[5];
             report[0] = 2; // Report ID
-            var ledBytes = BitConverter.GetBytes((uint)leds);
+            var ledBytes = BitConverter.GetBytes((uint)ledses);
             Array.Copy(ledBytes, 0, report, 1, 4);
             _hidStream.Write(report);
         }
@@ -132,22 +129,22 @@ namespace SpeedEditorSharp
         /// <summary>
         /// Set jog LED states
         /// </summary>
-        public void SetJogLeds(SpeedEditorJogLed jogLeds)
+        public void SetJogLeds(JogLedStates jogLedsStates)
         {
             var report = new byte[2];
             report[0] = 4; // Report ID
-            report[1] = (byte)jogLeds;
+            report[1] = (byte)jogLedsStates;
             _hidStream.Write(report);
         }
 
         /// <summary>
         /// Set jog wheel mode
         /// </summary>
-        public void SetJogMode(SpeedEditorJogMode jogMode, byte unknown = 255)
+        public void SetJogMode(JogModes jogModes, byte unknown = 255)
         {
             var report = new byte[7];
             report[0] = 3; // Report ID
-            report[1] = (byte)jogMode;
+            report[1] = (byte)jogModes;
             // bytes 2-5 are zero (4 byte integer)
             report[6] = unknown;
             _hidStream.Write(report);
@@ -177,15 +174,15 @@ namespace SpeedEditorSharp
         /// <summary>
         /// Safely invoke the JogChanged event
         /// </summary>
-        protected virtual void OnJogChanged(SpeedEditorJogMode mode, int value)
+        protected virtual void OnJogChanged(JogModes modes, int value)
         {
-            JogChanged?.Invoke(this, new JogEventArgs(mode, value));
+            JogChanged?.Invoke(this, new JogEventArgs(modes, value));
         }
 
         /// <summary>
         /// Safely invoke the KeyChanged event
         /// </summary>
-        protected virtual void OnKeyChanged(List<SpeedEditorKey> keys)
+        protected virtual void OnKeyChanged(List<Keys> keys)
         {
             KeyChanged?.Invoke(this, new KeyEventArgs(keys));
         }
@@ -230,7 +227,7 @@ namespace SpeedEditorSharp
             
             if (report.Length < 7) return;
             
-            var jogMode = (SpeedEditorJogMode)report[1];
+            var jogMode = (JogModes)report[1];
             var jogValue = BitConverter.ToInt32(report, 2);
             
             OnJogChanged(jogMode, jogValue);
@@ -244,13 +241,13 @@ namespace SpeedEditorSharp
             
             if (report.Length < 13) return;
             
-            var keys = new List<SpeedEditorKey>();
+            var keys = new List<Keys>();
             for (int i = 0; i < 6; i++)
             {
                 var keyCode = BitConverter.ToUInt16(report, 1 + (i * 2));
                 if (keyCode != 0)
                 {
-                    keys.Add((SpeedEditorKey)keyCode);
+                    keys.Add((Keys)keyCode);
                 }
             }
             
@@ -276,7 +273,7 @@ namespace SpeedEditorSharp
         {
             if (!_disposed)
             {
-                _cancellationTokenSource?.Cancel();
+                _cancellationTokenSource.Cancel();
                 _hidStream?.Dispose();
                 _disposed = true;
             }

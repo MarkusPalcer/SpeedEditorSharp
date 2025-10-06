@@ -1,4 +1,3 @@
-using System;
 using SpeedEditorSharp;
 using SimpleDemo;
 

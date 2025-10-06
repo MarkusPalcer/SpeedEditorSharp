@@ -16,10 +16,13 @@ namespace SpeedEditorSharp
         private HidStream _hidStream;
         private bool _disposed;
         private CancellationTokenSource _cancellationTokenSource;
+        private HashSet<Keys> _previousKeys = new HashSet<Keys>();
 
         // Events
         public event EventHandler<JogEventArgs>? JogChanged;
-        public event EventHandler<KeyEventArgs>? KeyChanged;
+        public event EventHandler<KeyEventArgs>? KeyDown;
+        public event EventHandler<KeyEventArgs>? KeyUp;
+        public event EventHandler<KeyEventArgs>? KeyPress;
         public event EventHandler<BatteryEventArgs>? BatteryChanged;
 
         public SpeedEditor()
@@ -180,11 +183,27 @@ namespace SpeedEditorSharp
         }
 
         /// <summary>
-        /// Safely invoke the KeyChanged event
+        /// Safely invoke the KeyDown event
         /// </summary>
-        protected virtual void OnKeyChanged(List<Keys> keys)
+        protected virtual void OnKeyDown(Keys key)
         {
-            KeyChanged?.Invoke(this, new KeyEventArgs(keys));
+            KeyDown?.Invoke(this, new KeyEventArgs(key));
+        }
+
+        /// <summary>
+        /// Safely invoke the KeyUp event
+        /// </summary>
+        protected virtual void OnKeyUp(Keys key)
+        {
+            KeyUp?.Invoke(this, new KeyEventArgs(key));
+        }
+
+        /// <summary>
+        /// Safely invoke the KeyPress event
+        /// </summary>
+        protected virtual void OnKeyPress(Keys key)
+        {
+            KeyPress?.Invoke(this, new KeyEventArgs(key));
         }
 
         /// <summary>
@@ -241,17 +260,40 @@ namespace SpeedEditorSharp
             
             if (report.Length < 13) return;
             
-            var keys = new List<Keys>();
+            var currentKeys = new HashSet<Keys>();
+            
             for (int i = 0; i < 6; i++)
             {
                 var keyCode = BitConverter.ToUInt16(report, 1 + (i * 2));
                 if (keyCode != 0)
                 {
-                    keys.Add((Keys)keyCode);
+                    var key = (Keys)keyCode;
+                    currentKeys.Add(key);
                 }
             }
             
-            OnKeyChanged(keys);
+            // Detect key down events (keys that are now pressed but weren't before)
+            foreach (var key in currentKeys)
+            {
+                if (!_previousKeys.Contains(key))
+                {
+                    OnKeyDown(key);
+                }
+            }
+            
+            // Detect key up events (keys that were pressed but aren't now)
+            foreach (var key in _previousKeys)
+            {
+                if (!currentKeys.Contains(key))
+                {
+                    OnKeyUp(key);
+                    // KeyPress event is fired when a key is released (complete press cycle)
+                    OnKeyPress(key);
+                }
+            }
+            
+            // Update previous keys state
+            _previousKeys = currentKeys;
         }
 
         private void ParseReport07(byte[] report)

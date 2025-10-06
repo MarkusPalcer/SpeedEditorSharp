@@ -13,17 +13,19 @@ namespace SimpleDemo
     {
         private readonly SpeedEditor _speedEditor;
         private readonly InputSimulator _inputSimulator;
-        private List<Keys> _currentKeys;
         private Leds _currentLedses;
 
         // Jog mode configuration
         private readonly Dictionary<Keys, (JogLedStates JogLed, JogModes JogMode)> _jogModes;
+        
+        // Key mapping dictionaries
+        private readonly Dictionary<Keys, VirtualKeyCode> _simpleKeyMappings;
+        private readonly Dictionary<Keys, (VirtualKeyCode Modifier, VirtualKeyCode Key)> _modifiedKeyMappings;
 
         public DemoHandler(SpeedEditor speedEditor)
         {
             _speedEditor = speedEditor;
             _inputSimulator = new InputSimulator();
-            _currentKeys = new List<Keys>();
             _currentLedses = 0;
 
             // Initialize jog mode mappings
@@ -34,13 +36,37 @@ namespace SimpleDemo
                 { Keys.SCRL, (JogLedStates.SCRL, JogModes.RELATIVE_2) }
             };
 
+            // Initialize simple key mappings (Speed Editor key -> Virtual key)
+            _simpleKeyMappings = new Dictionary<Keys, VirtualKeyCode>
+            {
+                { Keys.CAM1, VirtualKeyCode.VK_1 },
+                { Keys.CAM2, VirtualKeyCode.VK_2 },
+                { Keys.CAM3, VirtualKeyCode.VK_3 },
+                { Keys.CAM4, VirtualKeyCode.VK_4 },
+                { Keys.CAM5, VirtualKeyCode.VK_5 },
+                { Keys.CAM6, VirtualKeyCode.VK_6 },
+                { Keys.CAM7, VirtualKeyCode.VK_7 },
+                { Keys.CAM8, VirtualKeyCode.VK_8 },
+                { Keys.CAM9, VirtualKeyCode.VK_9 },
+                { Keys.STOP_PLAY, VirtualKeyCode.SPACE }
+            };
+
+            // Initialize modified key mappings (Speed Editor key -> Modifier + Key)
+            _modifiedKeyMappings = new Dictionary<Keys, (VirtualKeyCode, VirtualKeyCode)>
+            {
+                { Keys.CUT, (VirtualKeyCode.CONTROL, VirtualKeyCode.VK_X) },
+                { Keys.ESC, (VirtualKeyCode.CONTROL, VirtualKeyCode.VK_Z) }
+            };
+
             // Set initial state
             _speedEditor.SetLeds(_currentLedses);
             SetJogModeForKey(Keys.SCRL);
 
             // Subscribe to events
             _speedEditor.JogChanged += OnJogChanged;
-            _speedEditor.KeyChanged += OnKeyChanged;
+            _speedEditor.KeyDown += OnKeyDown;
+            _speedEditor.KeyUp += OnKeyUp;
+            _speedEditor.KeyPress += OnKeyPress;
             _speedEditor.BatteryChanged += OnBatteryChanged;
         }
 
@@ -68,86 +94,24 @@ namespace SimpleDemo
             }
         }
 
-        private void OnKeyChanged(object? sender, KeyEventArgs e)
+        private void HandleKeyMapping(Keys key)
         {
-            // Debug message
-            var keyNames = e.Keys.Any() ? string.Join(", ", e.Keys.Select(k => k.ToString())) : "None";
-            Console.WriteLine($"Keys held: {keyNames}");
-
-            // Find keys being released and toggle LED if there is one
-            foreach (var releasedKey in _currentKeys.Where(k => !e.Keys.Contains(k)))
+            // Try simple key mappings first
+            if (_simpleKeyMappings.TryGetValue(key, out var virtualKey))
             {
-                // Select jog mode
-                SetJogModeForKey(releasedKey);
-
-                // Toggle LEDs - check if this key has a corresponding LED
-                if (Enum.TryParse<Leds>(releasedKey.ToString(), out var ledFlag))
-                {
-                    _currentLedses ^= ledFlag;
-                    _speedEditor.SetLeds(_currentLedses);
-                }
+                _inputSimulator.Keyboard.KeyPress(virtualKey);
+                return;
             }
 
-            _currentKeys = new List<Keys>(e.Keys);
+            // Try modified key mappings
+            if (_modifiedKeyMappings.TryGetValue(key, out var modifiedMapping))
+            {
+                _inputSimulator.Keyboard.ModifiedKeyStroke(modifiedMapping.Modifier, modifiedMapping.Key);
+                return;
+            }
 
-            // Example key mappings
-            HandleKeyMappings(e.Keys);
-        }
-
-        private void HandleKeyMappings(IEnumerable<Keys> keys)
-        {
-            keys = keys.ToArray();
-            
-            // Example: pressing CAM1 will press the '1' key on the keyboard
-            if (keys.Contains(Keys.CAM1))
-            {
-                _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.VK_1);
-            }
-            else if (keys.Contains(Keys.CAM2))
-            {
-                _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.VK_2);
-            }
-            else if (keys.Contains(Keys.CAM3))
-            {
-                _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.VK_3);
-            }
-            else if (keys.Contains(Keys.CAM4))
-            {
-                _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.VK_4);
-            }
-            else if (keys.Contains(Keys.CAM5))
-            {
-                _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.VK_5);
-            }
-            else if (keys.Contains(Keys.CAM6))
-            {
-                _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.VK_6);
-            }
-            else if (keys.Contains(Keys.CAM7))
-            {
-                _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.VK_7);
-            }
-            else if (keys.Contains(Keys.CAM8))
-            {
-                _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.VK_8);
-            }
-            else if (keys.Contains(Keys.CAM9))
-            {
-                _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.VK_9);
-            }
-            else if (keys.Contains(Keys.STOP_PLAY))
-            {
-                _inputSimulator.Keyboard.KeyPress(VirtualKeyCode.SPACE);
-            }
-            else if (keys.Contains(Keys.CUT))
-            {
-                _inputSimulator.Keyboard.ModifiedKeyStroke(VirtualKeyCode.CONTROL, VirtualKeyCode.VK_X);
-            }
-            else if (keys.Contains(Keys.ESC))
-            {
-                _inputSimulator.Keyboard.ModifiedKeyStroke(VirtualKeyCode.CONTROL, VirtualKeyCode.VK_Z);
-            }
-            // Add more key mappings as needed...
+            // If no mapping found, you could optionally log or handle unmapped keys
+            // Console.WriteLine($"No mapping found for key: {key}");
         }
 
         private void OnBatteryChanged(object? sender, BatteryEventArgs e)
@@ -155,11 +119,41 @@ namespace SimpleDemo
             Console.WriteLine($"Battery {e.Level}%{(e.IsCharging ? " and charging" : "")}");
         }
 
+        private void OnKeyDown(object? sender, KeyEventArgs e)
+        {
+            Console.WriteLine($"Key DOWN: {e.Key}");
+        }
+
+        private void OnKeyUp(object? sender, KeyEventArgs e)
+        {
+            Console.WriteLine($"Key UP: {e.Key}");
+        }
+
+        private void OnKeyPress(object? sender, KeyEventArgs e)
+        {
+            Console.WriteLine($"Key PRESS: {e.Key}");
+            
+            // Handle jog mode selection
+            SetJogModeForKey(e.Key);
+            
+            // Toggle LEDs - check if this key has a corresponding LED
+            if (Enum.TryParse<Leds>(e.Key.ToString(), out var ledFlag))
+            {
+                _currentLedses ^= ledFlag;
+                _speedEditor.SetLeds(_currentLedses);
+            }
+            
+            // Handle key mappings
+            HandleKeyMapping(e.Key);
+        }
+
         public void Dispose()
         {
             // Unsubscribe from events to prevent memory leaks
             _speedEditor.JogChanged -= OnJogChanged;
-            _speedEditor.KeyChanged -= OnKeyChanged;
+            _speedEditor.KeyDown -= OnKeyDown;
+            _speedEditor.KeyUp -= OnKeyUp;
+            _speedEditor.KeyPress -= OnKeyPress;
             _speedEditor.BatteryChanged -= OnBatteryChanged;
         }
     }

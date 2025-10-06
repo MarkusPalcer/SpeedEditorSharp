@@ -3,10 +3,15 @@ using SpeedEditorSharp.Enums;
 namespace SpeedEditorSharp.Events
 {
     /// <summary>
-    /// Event args for key events
+    /// Event args for key events (down, up, and press)
     /// </summary>
-    public class KeyEventArgs(IEnumerable<Keys> keys) : EventArgs
+    public class KeyEventArgs : EventArgs
     {
-        public IEnumerable<Keys> Keys { get; } = keys;
+        public Keys Key { get; }
+
+        public KeyEventArgs(Keys key)
+        {
+            Key = key;
+        }
     }
 }
